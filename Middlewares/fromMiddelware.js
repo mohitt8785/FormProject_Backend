@@ -1,31 +1,35 @@
 import multer from "multer";
-import path from "path";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
+import cloudinary from "../Config/cloudinary.js";
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    if (file.fieldname === "photo") cb(null, "uploads/photos");
-    else cb(null, "uploads/biometrics");
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
+// Cloudinary storage for photos
+const photoStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "growth-clients/photos",
+    allowed_formats: ["jpg", "jpeg", "png", "webp"],
+    transformation: [{ width: 800, height: 800, crop: "limit" }],
   },
 });
 
-const upload = multer({ storage });
+// Cloudinary storage for biometrics
+const biometricStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "growth-clients/biometrics",
+    allowed_formats: ["jpg", "jpeg", "png", "pdf"],
+  },
+});
+
+const upload = multer({
+  storage: multer.memoryStorage(), // Temporary memory storage
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+});
+
+// Custom upload function
+export const uploadToCloudinary = {
+  photo: multer({ storage: photoStorage }),
+  biometric: multer({ storage: biometricStorage }),
+};
 
 export default upload;
-
-
-// import multer from "multer";
-// import path from "path";
-
-// const storage = multer.diskStorage({
-//   destination: (req, file, cb) => {
-//     cb(null, "uploads/photos");
-//   },
-//   filename: (req, file, cb) => {
-//     cb(null, Date.now() + path.extname(file.originalname));
-//   },
-// });
-
-// export const upload = multer({ storage });

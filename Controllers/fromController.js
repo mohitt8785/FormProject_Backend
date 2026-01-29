@@ -1,26 +1,62 @@
 import Client from "../Models/formModel.js";
+import cloudinary from "../Config/cloudinary.js";
+
+// Helper function to upload to Cloudinary
+const uploadSingleFile = async (file, folder) => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: folder,
+        resource_type: "auto",
+      },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result.secure_url);
+      },
+    );
+
+    uploadStream.end(file.buffer);
+  });
+};
 
 export const createClient = async (req, res) => {
   try {
-    // ✅ Photo validation
-    if (!req.files || !req.files.photo) {
+    console.log("📥 Received files:", req.files);
+    console.log("📝 Received body:", req.body);
+
+    // Validate photo
+    if (!req.files || !req.files.photo || !req.files.photo[0]) {
       return res.status(400).json({
         success: false,
         message: "Photo is required ❌",
       });
     }
 
-    // ✅ req.body se photo aur biometric fields remove karo
+    // Upload photo to Cloudinary
+    const photoUrl = await uploadSingleFile(
+      req.files.photo[0],
+      "growth-clients/photos",
+    );
+
+    // Upload biometric if exists
+    let biometricUrl = null;
+    if (req.files.biometric && req.files.biometric[0]) {
+      biometricUrl = await uploadSingleFile(
+        req.files.biometric[0],
+        "growth-clients/biometrics",
+      );
+    }
+
+    // Clean data
     const { photo, biometric, ...clientData } = req.body;
 
-    // ✅ Clean data with file paths
     const finalData = {
       ...clientData,
-      photo: req.files.photo[0].path,  // File ka path
-      biometric: req.files.biometric ? req.files.biometric[0].path : null,
+      photo: photoUrl,
+      biometric: biometricUrl,
     };
 
-    console.log("Creating client with data:", finalData);
+    console.log("✅ Creating client with data:", finalData);
 
     const client = await Client.create(finalData);
 
@@ -30,7 +66,7 @@ export const createClient = async (req, res) => {
       client,
     });
   } catch (error) {
-    console.error("Create client error:", error);
+    console.error("❌ Create client error:", error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -50,22 +86,35 @@ export const getClients = async (req, res) => {
 export const updateClient = async (req, res) => {
   try {
     const { id } = req.params;
-    
-    // ✅ req.body se photo aur biometric remove karo
-    const { photo, biometric, _id, createdAt, updatedAt, __v, ...updateData } = req.body;
-    
-    // ✅ Agar naye files upload hui hain
-    if (req.files) {
-      if (req.files.photo && req.files.photo[0]) {
-        updateData.photo = req.files.photo[0].path;
-      }
-      if (req.files.biometric && req.files.biometric[0]) {
-        updateData.biometric = req.files.biometric[0].path;
-      }
+
+    const { photo, biometric, _id, createdAt, updatedAt, __v, ...updateData } =
+      req.body;
+
+    console.log("📝 Update request for:", id);
+    console.log("📥 Files received:", req.files);
+
+    // Upload new photo if provided
+    if (req.files && req.files.photo && req.files.photo[0]) {
+      const photoUrl = await uploadSingleFile(
+        req.files.photo[0],
+        "growth-clients/photos",
+      );
+      updateData.photo = photoUrl;
+      console.log("✅ New photo uploaded:", photoUrl);
     }
-    
-    console.log("Updating client with data:", updateData);
-    
+
+    // Upload new biometric if provided
+    if (req.files && req.files.biometric && req.files.biometric[0]) {
+      const biometricUrl = await uploadSingleFile(
+        req.files.biometric[0],
+        "growth-clients/biometrics",
+      );
+      updateData.biometric = biometricUrl;
+      console.log("✅ New biometric uploaded:", biometricUrl);
+    }
+
+    console.log("🔄 Updating with data:", updateData);
+
     const updatedClient = await Client.findByIdAndUpdate(id, updateData, {
       new: true,
       runValidators: true,
@@ -84,7 +133,7 @@ export const updateClient = async (req, res) => {
       client: updatedClient,
     });
   } catch (error) {
-    console.error("Update client error:", error);
+    console.error("❌ Update client error:", error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -103,6 +152,9 @@ export const deleteClient = async (req, res) => {
         message: "Client not found",
       });
     }
+
+    // Optional: Delete from Cloudinary
+    // You can extract public_id from URL and delete
 
     res.status(200).json({
       success: true,
