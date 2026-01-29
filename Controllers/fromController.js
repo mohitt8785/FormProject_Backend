@@ -36,15 +36,29 @@ export const getClients = async (req, res) => {
 export const updateClient = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const updateData = { ...req.body };
-    
-    // Agar new files upload hui hain
+
+    // ✅ Only agar NEW files upload hui hain
     if (req.files) {
-      if (req.files.photo) updateData.photo = req.files.photo[0].path;
-      if (req.files.biometric) updateData.biometric = req.files.biometric[0].path;
+      if (req.files.photo && req.files.photo[0]) {
+        updateData.photo = req.files.photo[0].path;
+        console.log("✅ New photo uploaded:", req.files.photo[0].path);
+      }
+      if (req.files.biometric && req.files.biometric[0]) {
+        updateData.biometric = req.files.biometric[0].path;
+      }
     }
-    
+
+    // ✅ Remove photo from updateData if it's a string (old path)
+    if (
+      typeof updateData.photo === "string" &&
+      updateData.photo.includes("uploads/")
+    ) {
+      delete updateData.photo;
+      console.log("⏭️ Skipping photo - keeping existing");
+    }
+
     const updatedClient = await Client.findByIdAndUpdate(id, updateData, {
       new: true,
       runValidators: true,
@@ -63,6 +77,7 @@ export const updateClient = async (req, res) => {
       client: updatedClient,
     });
   } catch (error) {
+    console.error("Update error:", error);
     res.status(500).json({
       success: false,
       message: error.message,
