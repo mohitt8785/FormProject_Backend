@@ -2,14 +2,27 @@ import Client from "../Models/formModel.js";
 
 export const createClient = async (req, res) => {
   try {
-    const clientData = {
-      ...req.body,
-      photo: req.files.photo,
-      // 🟢 Biometric optional - agar hai toh save karo, nahi toh skip
+    // ✅ Photo validation
+    if (!req.files || !req.files.photo) {
+      return res.status(400).json({
+        success: false,
+        message: "Photo is required ❌",
+      });
+    }
+
+    // ✅ req.body se photo aur biometric fields remove karo
+    const { photo, biometric, ...clientData } = req.body;
+
+    // ✅ Clean data with file paths
+    const finalData = {
+      ...clientData,
+      photo: req.files.photo[0].path,  // File ka path
       biometric: req.files.biometric ? req.files.biometric[0].path : null,
     };
 
-    const client = await Client.create(clientData);
+    console.log("Creating client with data:", finalData);
+
+    const client = await Client.create(finalData);
 
     res.status(201).json({
       success: true,
@@ -17,6 +30,7 @@ export const createClient = async (req, res) => {
       client,
     });
   } catch (error) {
+    console.error("Create client error:", error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -36,29 +50,22 @@ export const getClients = async (req, res) => {
 export const updateClient = async (req, res) => {
   try {
     const { id } = req.params;
-
-    const updateData = { ...req.body };
-
-    // ✅ Only agar NEW files upload hui hain
+    
+    // ✅ req.body se photo aur biometric remove karo
+    const { photo, biometric, _id, createdAt, updatedAt, __v, ...updateData } = req.body;
+    
+    // ✅ Agar naye files upload hui hain
     if (req.files) {
       if (req.files.photo && req.files.photo[0]) {
         updateData.photo = req.files.photo[0].path;
-        console.log("✅ New photo uploaded:", req.files.photo[0].path);
       }
       if (req.files.biometric && req.files.biometric[0]) {
         updateData.biometric = req.files.biometric[0].path;
       }
     }
-
-    // ✅ Remove photo from updateData if it's a string (old path)
-    if (
-      typeof updateData.photo === "string" &&
-      updateData.photo.includes("uploads/")
-    ) {
-      delete updateData.photo;
-      console.log("⏭️ Skipping photo - keeping existing");
-    }
-
+    
+    console.log("Updating client with data:", updateData);
+    
     const updatedClient = await Client.findByIdAndUpdate(id, updateData, {
       new: true,
       runValidators: true,
@@ -77,7 +84,7 @@ export const updateClient = async (req, res) => {
       client: updatedClient,
     });
   } catch (error) {
-    console.error("Update error:", error);
+    console.error("Update client error:", error);
     res.status(500).json({
       success: false,
       message: error.message,
