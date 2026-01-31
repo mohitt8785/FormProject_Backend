@@ -10,7 +10,7 @@ const clientSchema = new mongoose.Schema(
     phone: { type: String, required: true },
     email: { type: String, required: true  },
     address: { type: String, required: true },
-    country: { type: String, required: true },
+    Nationality: { type: String, required: true },
     familyMembers: { type: Number, required: true  },
 
     photo: { type: String, required: true },
