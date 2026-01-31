@@ -15,7 +15,18 @@ const userSchema = new mongoose.Schema(
 
     password: {
       type: String,
-      required: true,
+      required: false, // Ab password optional hai
+    },
+
+    // OTP fields
+    otp: {
+      type: String,
+      default: null,
+    },
+    
+    otpExpiry: {
+      type: Date,
+      default: null,
     },
   },
   { timestamps: true }

@@ -1,7 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
-import path from "path"; // ✅ FIX
+import path from "path";
 import { fileURLToPath } from "url";
 
 import connectDB from "./Config/ConnectDB.js";
@@ -9,6 +9,12 @@ import userRoutes from "./routes/userRoute.js";
 import formRoutes from "./routes/formRoute.js";
 
 dotenv.config();
+
+// ✅ DEBUG: Check if .env is loading
+console.log("🔍 Environment Variables Check:");
+console.log("RESEND_API_KEY:", process.env.RESEND_API_KEY ? "✅ Loaded" : "❌ Missing");
+console.log("JWT_SECRET:", process.env.JWT_SECRET ? "✅ Loaded" : "❌ Missing");
+console.log("PORT:", process.env.PORT);
 
 const app = express();
 
@@ -20,8 +26,8 @@ const __dirname = path.dirname(__filename);
 app.use(
   cors({
     origin: [
-      "http://localhost:5173", // Local development
-      "https://growthclient.netlify.app", // ✅ Production
+      "http://localhost:5173",
+      "https://growthclient.netlify.app",
     ],
     credentials: true,
   }),
@@ -43,7 +49,7 @@ app.get("/", (req, res) => {
 app.use("/api/user", userRoutes);
 app.use("/api/clients", formRoutes);
 
-//  5. 404 Handler (optional but good practice)
+// 404 Handler
 app.use((req, res) => {
   res.status(404).json({
     success: false,

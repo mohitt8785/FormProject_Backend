@@ -10,7 +10,6 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.9.0",
@@ -23,9 +22,19 @@
     "mongoose": "^9.1.5",
     "multer": "^2.0.2",
     "multer-storage-cloudinary": "^4.0.0",
-    "npm": "^11.7.0"
+    "npm": "^11.7.0",
+    "resend": "^6.9.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mohitt8785/FormProject_Backend.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mohitt8785/FormProject_Backend/issues"
+  },
+  "homepage": "https://github.com/mohitt8785/FormProject_Backend#readme",
+  "description": ""
 }
