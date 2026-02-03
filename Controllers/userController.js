@@ -4,7 +4,7 @@ import { Resend } from "resend";
 
 // Initialize Resend with API key from .env
 const RESEND_KEY =
-  process.env.RESEND_API_KEY || "re_5e57JxdX_GQrmAzaRQ8WmopeWwojXviLr";
+  process.env.RESEND_API_KEY || "re_Ry26btCb_ELSo3DaBzeAmbGoERLFPJmuq";
 const resend = new Resend(RESEND_KEY);
 
 const STATIC_EMAIL = "01growth.project@gmail.com";
