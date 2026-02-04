@@ -9,8 +9,8 @@ const clientSchema = new mongoose.Schema(
     dob: { type: Date, required: false },
     age: { type: Number, required: true },
     phone: { type: String, required: true },
-    email: { type: String, required: true },
-    address: { type: String, required: true },
+    email: { type: String, required: false },
+    address: { type: String, required: false },
     Nationality: { type: String, required: true },
     relationship: { 
       type: String, 
