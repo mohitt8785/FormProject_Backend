@@ -155,7 +155,7 @@ export const requestOTP = async (req, res) => {
     }
 
     const otp = generateOTP();
-    const otpExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    const otpExpiry = new Date(Date.now() + 12 * 60 * 1000); // 12 HOUR
 
     user.otp = otp;
     user.otpExpiry = otpExpiry;
