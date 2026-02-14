@@ -6,7 +6,7 @@ import { fileURLToPath } from "url";
 
 import connectDB from "./Config/ConnectDB.js";
 import userRoutes from "./routes/userRoute.js";
-import formRoutes from "./routes/formRoute.js";
+import clientRoutes from "./routes/ClientRoute.js";
 
 dotenv.config();
 
@@ -47,7 +47,7 @@ app.get("/", (req, res) => {
 
 // routes
 app.use("/api/user", userRoutes);
-app.use("/api/clients", formRoutes);
+app.use("/api/clients", clientRoutes);
 
 // 404 Handler
 app.use((req, res) => {
