@@ -91,6 +91,51 @@ const clientSchema = new mongoose.Schema(
       max: 50,
     },
 
+    /* ✅ GOVERNMENT SERVANT INFORMATION */
+    hasGovtServant: {
+      type: String,
+      enum: ["Yes", "No"],
+      default: "No",
+    },
+    govtServantRelation: {
+      type: String,
+      enum: [
+        "Father",
+        "Mother",
+        "Spouse",
+        "Brother",
+        "Sister",
+        "Son",
+        "Daughter",
+        "Uncle",
+        "Aunt",
+        "Grandfather",
+        "Grandmother",
+        "Other",
+      ],
+    },
+    govtServantName: String,
+    govtServantWorkType: {
+      type: String,
+      enum: [
+        "Central Government",
+        "State Government",
+        "PSU (Public Sector Undertaking)",
+        "Indian Army",
+        "Indian Navy",
+        "Indian Air Force",
+        "Police Department",
+        "Railway",
+        "Banking Sector",
+        "Teaching (Government School/College)",
+        "Medical (Government Hospital)",
+        "Judiciary",
+        "Municipal Corporation",
+        "Other Government Department",
+      ],
+    },
+    govtServantDesignation: String,
+
     /* PARENTS */
     fatherName: { type: String, required: true },
     fatherSurname: { type: String, required: true },
@@ -200,8 +245,6 @@ clientSchema.pre("save", function () {
   ) {
     this.registrationStatus = "Completed";
   }
-
- 
 });
 
 export default mongoose.model("Client", clientSchema);
