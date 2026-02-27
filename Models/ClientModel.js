@@ -62,7 +62,7 @@ const clientSchema = new mongoose.Schema(
   {
     /* BASIC INFO */
     clientName: { type: String, required: true },
-    surname: { type: String, required: true },
+    surname: { type: String},
     contact: { type: String, required: true, unique: true },
     email: { type: String },
 
@@ -154,7 +154,7 @@ const clientSchema = new mongoose.Schema(
 
     /* PARENTS */
     fatherName: { type: String, required: true },
-    fatherSurname: { type: String, required: true },
+    fatherSurname: { type: String },
     fatherPhone: {
       type: String,
       required: true,
@@ -163,10 +163,9 @@ const clientSchema = new mongoose.Schema(
     fatherEmail: String,
 
     motherName: { type: String, required: true },
-    motherSurname: { type: String, required: true },
+    motherSurname: { type: String},
     motherPhone: {
       type: String,
-      required: true,
       match: [/^[0-9]{10}$/, "Invalid phone number"],
     },
     motherEmail: String,
@@ -245,7 +244,6 @@ clientSchema.index({
 clientSchema.pre("save", function () {
   this.completedSteps.clientInfo = !!(
     this.clientName &&
-    this.surname &&
     this.contact
   );
 

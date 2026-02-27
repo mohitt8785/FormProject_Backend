@@ -60,7 +60,6 @@ export const createClient = async (req, res) => {
     ========================= */
     const requiredFields = [
       "clientName",
-      "surname",
       "contact",
       "gender",
       "maritalStatus",
@@ -68,11 +67,10 @@ export const createClient = async (req, res) => {
       "aadhaarCardNo",
       "panCardNo",
       "fatherName",
-      "fatherSurname",
+      
       "fatherPhone",
       "motherName",
-      "motherSurname",
-      "motherPhone",
+      
     ];
 
     for (const field of requiredFields) {
