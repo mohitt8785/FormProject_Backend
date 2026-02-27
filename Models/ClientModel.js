@@ -92,21 +92,23 @@ const clientSchema = new mongoose.Schema(
     },
 
     // new fields for visa application
-     
     preWorkExperience: { type: String, default: "" },
     consularName: { type: String, default: "" },
     country: { type: String, default: "" },
     appliedFor: { type: String, default: "" },
 
-    /* ✅ GOVERNMENT SERVANT INFORMATION */
+    /* GOVERNMENT SERVANT INFORMATION */
     hasGovtServant: {
       type: String,
       enum: ["Yes", "No"],
       default: "No",
     },
+
+    // ✅ FIX: "" added to allow empty value when hasGovtServant = "No"
     govtServantRelation: {
       type: String,
       enum: [
+        "",
         "Father",
         "Mother",
         "Spouse",
@@ -120,11 +122,16 @@ const clientSchema = new mongoose.Schema(
         "Grandmother",
         "Other",
       ],
+      default: "",
     },
-    govtServantName: String,
+
+    govtServantName: { type: String, default: "" },
+
+    // ✅ FIX: "" added to allow empty value when hasGovtServant = "No"
     govtServantWorkType: {
       type: String,
       enum: [
+        "",
         "Central Government",
         "State Government",
         "PSU (Public Sector Undertaking)",
@@ -140,8 +147,10 @@ const clientSchema = new mongoose.Schema(
         "Municipal Corporation",
         "Other Government Department",
       ],
+      default: "",
     },
-    govtServantDesignation: String,
+
+    govtServantDesignation: { type: String, default: "" },
 
     /* PARENTS */
     fatherName: { type: String, required: true },
@@ -247,11 +256,16 @@ clientSchema.pre("save", function () {
     this.completedSteps.biometric = true;
   }
 
+  // ✅ Fixed: second condition checks documents too so InProgress actually works
   if (this.completedSteps.clientInfo && this.completedSteps.livePhoto) {
     this.registrationStatus = "InProgress";
   }
 
-  if (this.completedSteps.clientInfo && this.completedSteps.livePhoto) {
+  if (
+    this.completedSteps.clientInfo &&
+    this.completedSteps.livePhoto &&
+    this.completedSteps.documents
+  ) {
     this.registrationStatus = "Completed";
   }
 });
