@@ -25,9 +25,7 @@ const extractCloudinaryPublicId = (assetUrl) => {
     if (uploadIndex === -1) return null;
 
     let publicPath = url.pathname.slice(uploadIndex + uploadMarker.length);
-    // Strip optional version segment: v123456789/
     publicPath = publicPath.replace(/^v\d+\//, "");
-    // Strip extension
     publicPath = publicPath.replace(/\.[^/.]+$/, "");
 
     return publicPath || null;
@@ -97,51 +95,49 @@ export const createClient = async (req, res) => {
     }
 
     /* =========================
-       UPLOAD PHOTO TO CLOUDINARY
-    ========================= */
-    const photoUrl = await uploadToCloudinary(
-      req.files.photo[0].path,
-      "clients/photos",
-    );
-
-    /* =========================
        BUILD CLIENT DATA
     ========================= */
     let clientData = {
       ...body,
-      photo: photoUrl,
       photoCapturedAt: new Date(),
       familyMembersCount: Number(body.familyMembersCount) || 0,
     };
 
     /* =========================
-       DOCUMENTS (OPTIONAL)
+       ✅ PARALLEL UPLOADS — photo + all documents at same time
     ========================= */
-    clientData.documents = [];
-
-    if (req.files?.documents && body.documents) {
-      const documentsMeta =
-        typeof body.documents === "string"
+    const documentsMeta =
+      req.files?.documents && body.documents
+        ? typeof body.documents === "string"
           ? JSON.parse(body.documents)
-          : body.documents;
+          : body.documents
+        : [];
 
-      for (let i = 0; i < req.files.documents.length; i++) {
-        const docFile = req.files.documents[i];
+    // Build all upload promises together
+    const photoPromise = uploadToCloudinary(
+      req.files.photo[0].path,
+      "clients/photos"
+    );
 
-        const docUrl = await uploadToCloudinary(
-          docFile.path,
-          "clients/documents",
-        );
-
-        clientData.documents.push({
+    const docPromises =
+      req.files?.documents?.map((docFile, i) =>
+        uploadToCloudinary(docFile.path, "clients/documents").then((url) => ({
           documentType: documentsMeta[i]?.documentType || "Other",
-          imageUrl: docUrl,
-        });
-      }
-    }
+          imageUrl: url,
+        }))
+      ) || [];
+
+    // ✅ Run photo + all docs in parallel
+    const [photoUrl, ...uploadedDocs] = await Promise.all([
+      photoPromise,
+      ...docPromises,
+    ]);
+
+    clientData.photo = photoUrl;
+    clientData.documents = uploadedDocs;
 
     /* =========================
-       BIOMETRICS (OPTIONAL)
+       BIOMETRICS (OPTIONAL) — parallel too
     ========================= */
     clientData.biometricData = [];
 
@@ -151,20 +147,15 @@ export const createClient = async (req, res) => {
           ? JSON.parse(body.biometricData)
           : body.biometricData;
 
-      for (let i = 0; i < req.files.biometrics.length; i++) {
-        const bioFile = req.files.biometrics[i];
-
-        const bioUrl = await uploadToCloudinary(
-          bioFile.path,
-          "clients/biometrics",
-        );
-
-        clientData.biometricData.push({
+      const bioPromises = req.files.biometrics.map((bioFile, i) =>
+        uploadToCloudinary(bioFile.path, "clients/biometrics").then((url) => ({
           fingerType: biometricMeta[i]?.fingerType || "Unknown",
-          fingerprintUrl: bioUrl,
+          fingerprintUrl: url,
           quality: biometricMeta[i]?.quality || 0,
-        });
-      }
+        }))
+      );
+
+      clientData.biometricData = await Promise.all(bioPromises);
     }
 
     /* =========================
@@ -278,43 +269,85 @@ export const updateClient = async (req, res) => {
 
     let updateData = { ...body };
 
-    // 🚫 biometric abhi disable hai
     delete updateData.biometricData;
 
     /* =========================
-       UPDATE PHOTO
+       ✅ PARALLEL: Photo + Documents uploads together
     ========================= */
+    const uploadTasks = [];
+
+    // Photo upload task
+    let photoUploadIndex = null;
     if (req.files?.photo?.[0]) {
-      const previousPhoto = existingClient.photo;
-      const photoUrl = await uploadToCloudinary(
-        req.files.photo[0].path,
-        "clients/photos",
+      photoUploadIndex = uploadTasks.length;
+      uploadTasks.push(
+        uploadToCloudinary(req.files.photo[0].path, "clients/photos")
       );
-
-      updateData.photo = photoUrl;
-      updateData.photoCapturedAt = new Date();
-
-      if (previousPhoto && previousPhoto !== photoUrl) {
-        await deleteFromCloudinary(previousPhoto);
-      }
     }
 
-    /* =========================
-       UPDATE DOCUMENTS
-    ========================= */
+    // Documents upload tasks
+    let docUploadStartIndex = null;
+    let documentsMeta = [];
+    let normalizedDocumentsMeta = [];
+    const uploadedDocuments = req.files?.documents || [];
+
     if (body.documents) {
-      const documentsMeta =
+      documentsMeta =
         typeof body.documents === "string"
           ? JSON.parse(body.documents)
           : body.documents;
-      const normalizedDocumentsMeta = Array.isArray(documentsMeta)
+      normalizedDocumentsMeta = Array.isArray(documentsMeta)
         ? documentsMeta
         : [documentsMeta];
 
-      const uploadedDocuments = req.files?.documents || [];
+      // Collect all file upload promises in order
+      const fileUploadMetas = [];
+      for (const documentMeta of normalizedDocumentsMeta) {
+        const uploadIndex = Number(documentMeta?.uploadIndex);
+        const hasUpload =
+          Number.isInteger(uploadIndex) &&
+          uploadIndex >= 0 &&
+          uploadIndex < uploadedDocuments.length;
+
+        if (hasUpload) {
+          fileUploadMetas.push({
+            documentMeta,
+            fileIndex: uploadIndex,
+            taskIndex: uploadTasks.length,
+          });
+          uploadTasks.push(
+            uploadToCloudinary(
+              uploadedDocuments[uploadIndex].path,
+              "clients/documents"
+            )
+          );
+        }
+      }
+
+      docUploadStartIndex = fileUploadMetas;
+    }
+
+    // ✅ Run all uploads in parallel
+    const uploadResults = await Promise.all(uploadTasks);
+
+    // Apply photo result
+    if (photoUploadIndex !== null) {
+      const previousPhoto = existingClient.photo;
+      const newPhotoUrl = uploadResults[photoUploadIndex];
+      updateData.photo = newPhotoUrl;
+      updateData.photoCapturedAt = new Date();
+
+      if (previousPhoto && previousPhoto !== newPhotoUrl) {
+        // delete old photo in background (non-blocking)
+        deleteFromCloudinary(previousPhoto).catch(console.error);
+      }
+    }
+
+    // Apply document results
+    if (body.documents) {
       const documentsByType = new Map();
 
-      // Start from current DB documents to prevent accidental data loss on partial payloads.
+      // Start from existing DB documents
       existingClient.documents?.forEach((doc) => {
         if (doc?.documentType && doc?.imageUrl) {
           documentsByType.set(doc.documentType, {
@@ -323,6 +356,17 @@ export const updateClient = async (req, res) => {
           });
         }
       });
+
+      // Map uploaded files back using taskIndex
+      const uploadedDocMap = new Map();
+      if (docUploadStartIndex) {
+        for (const { documentMeta, taskIndex } of docUploadStartIndex) {
+          uploadedDocMap.set(
+            Number(documentMeta?.uploadIndex),
+            uploadResults[taskIndex]
+          );
+        }
+      }
 
       for (const documentMeta of normalizedDocumentsMeta) {
         const documentType = documentMeta?.documentType || "Other";
@@ -333,11 +377,8 @@ export const updateClient = async (req, res) => {
           uploadIndex < uploadedDocuments.length;
 
         if (hasUpload) {
+          const docUrl = uploadedDocMap.get(uploadIndex);
           const previousDocument = documentsByType.get(documentType);
-          const docUrl = await uploadToCloudinary(
-            uploadedDocuments[uploadIndex].path,
-            "clients/documents",
-          );
 
           documentsByType.set(documentType, {
             documentType,
@@ -348,7 +389,10 @@ export const updateClient = async (req, res) => {
             previousDocument?.imageUrl &&
             previousDocument.imageUrl !== docUrl
           ) {
-            await deleteFromCloudinary(previousDocument.imageUrl);
+            // delete old doc in background
+            deleteFromCloudinary(previousDocument.imageUrl).catch(
+              console.error
+            );
           }
           continue;
         }
@@ -365,25 +409,20 @@ export const updateClient = async (req, res) => {
     }
 
     /* =========================
-       UPDATE BIOMETRICS
+       UPDATE BIOMETRICS (optional)
     ========================= */
     if (req.files?.biometrics && body.biometricData) {
       const biometricMeta = JSON.parse(body.biometricData);
 
-      updateData.biometricData = [];
-
-      for (let i = 0; i < req.files.biometrics.length; i++) {
-        const bioUrl = await uploadToCloudinary(
-          req.files.biometrics[i].path,
-          "clients/biometrics",
-        );
-
-        updateData.biometricData.push({
+      const bioPromises = req.files.biometrics.map((bioFile, i) =>
+        uploadToCloudinary(bioFile.path, "clients/biometrics").then((url) => ({
           fingerType: biometricMeta[i]?.fingerType || "Unknown",
-          fingerprintUrl: bioUrl,
+          fingerprintUrl: url,
           quality: biometricMeta[i]?.quality || 0,
-        });
-      }
+        }))
+      );
+
+      updateData.biometricData = await Promise.all(bioPromises);
     }
 
     updateData.familyMembersCount = Number(body.familyMembersCount) || 0;
@@ -426,7 +465,7 @@ export const updateClientStatus = async (req, res) => {
     const client = await Client.findByIdAndUpdate(
       id,
       { registrationStatus, remarks },
-      { new: true },
+      { new: true }
     );
 
     res.status(200).json({

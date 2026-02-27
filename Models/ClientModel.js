@@ -66,18 +66,18 @@ const clientSchema = new mongoose.Schema(
     contact: { type: String, required: true, unique: true },
     email: { type: String },
 
-    gender: { 
-      type: String, 
+    gender: {
+      type: String,
       enum: ["Male", "Female", "Other"],
-      required: true 
+      required: true,
     },
     dob: { type: Date, required: true },
     age: { type: Number, required: true },
     nationality: { type: String, required: true },
-    maritalStatus: { 
-      type: String, 
+    maritalStatus: {
+      type: String,
       enum: ["Single", "Married", "Separated", "Divorced", "Widowed"],
-      required: true 
+      required: true,
     },
 
     education: String,
@@ -90,6 +90,13 @@ const clientSchema = new mongoose.Schema(
       min: 0,
       max: 50,
     },
+
+    // new fields for visa application
+     
+    preWorkExperience: { type: String, default: "" },
+    consularName: { type: String, default: "" },
+    country: { type: String, default: "" },
+    appliedFor: { type: String, default: "" },
 
     /* ✅ GOVERNMENT SERVANT INFORMATION */
     hasGovtServant: {
@@ -148,8 +155,8 @@ const clientSchema = new mongoose.Schema(
 
     motherName: { type: String, required: true },
     motherSurname: { type: String, required: true },
-    motherPhone: { 
-      type: String, 
+    motherPhone: {
+      type: String,
       required: true,
       match: [/^[0-9]{10}$/, "Invalid phone number"],
     },
@@ -210,13 +217,18 @@ const clientSchema = new mongoose.Schema(
     remarks: String,
     isActive: { type: Boolean, default: true },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 /* =========================
    INDEXES FOR SEARCH
 ========================= */
-clientSchema.index({ clientName: 'text', surname: 'text', contact: 'text', email: 'text' });
+clientSchema.index({
+  clientName: "text",
+  surname: "text",
+  contact: "text",
+  email: "text",
+});
 
 /* =========================
    PRE SAVE LOGIC
@@ -239,10 +251,7 @@ clientSchema.pre("save", function () {
     this.registrationStatus = "InProgress";
   }
 
-  if (
-    this.completedSteps.clientInfo &&
-    this.completedSteps.livePhoto
-  ) {
+  if (this.completedSteps.clientInfo && this.completedSteps.livePhoto) {
     this.registrationStatus = "Completed";
   }
 });
