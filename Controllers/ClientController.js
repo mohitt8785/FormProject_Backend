@@ -12,6 +12,7 @@ const uploadToCloudinary = async (filePath, folderName) => {
 
   // remove temp file after upload
   fs.unlinkSync(filePath);
+  
 
   return result.secure_url;
 };
